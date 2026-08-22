@@ -2,9 +2,9 @@ name: Fabric CI
 
 on:
   pull_request:
-    branches: [dev, test, prod]
+    branches: [dev, test, main]
   push:
-    branches: [dev, test, prod]
+    branches: [dev, test, main]
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
       - name: Check secrets are not committed
         shell: bash
         run: |
-          if git grep -nEI '(github_pat_|ghp_|gho_|AZURE_CLIENT_SECRET|GITHUB_PERSONAL_ACCESS_TOKEN|BEGIN (RSA|OPENSSH) PRIVATE KEY)' -- ':!.github/workflows/fabric-ci.yml' ':!.github/workflows/fabric-cd.yml'; then
+          if git grep -nEI '(github_pat_|ghp_|gho_|AZURE_CLIENT_SECRET|GITHUB_PERSONAL_ACCESS_TOKEN|BEGIN (RSA|OPENSSH) PRIVATE KEY)' -- ':!.github/workflows/fabric-ci.yml' ':!.github/workflows/fabric-release-deploy.yml'; then
             echo 'Potential credential found in tracked files.'
             exit 1
           fi
