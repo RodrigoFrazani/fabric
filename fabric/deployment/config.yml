@@ -1,0 +1,3 @@
+core:
+  workspace_id: "__FABRIC_WORKSPACE_ID__"
+  repository_directory: "."
