@@ -1,0 +1,38 @@
+name: Fabric CI
+
+on:
+  pull_request:
+    branches: [dev, test, prod]
+  push:
+    branches: [dev, test, prod]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Fabric CI / validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate JSON definitions
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files = [p for p in Path('.').rglob('*.json') if '.git' not in p.parts and 'node_modules' not in p.parts]
+          for path in files:
+              with path.open(encoding='utf-8') as stream:
+                  json.load(stream)
+              print(f'valid: {path}')
+          print(f'Validated {len(files)} JSON file(s).')
+          PY
+      - name: Check secrets are not committed
+        shell: bash
+        run: |
+          if git grep -nEI '(github_pat_|ghp_|gho_|AZURE_CLIENT_SECRET|GITHUB_PERSONAL_ACCESS_TOKEN|BEGIN (RSA|OPENSSH) PRIVATE KEY)' -- ':!.github/workflows/fabric-ci.yml' ':!.github/workflows/fabric-cd.yml'; then
+            echo 'Potential credential found in tracked files.'
+            exit 1
+          fi
