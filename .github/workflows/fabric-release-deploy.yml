@@ -1,0 +1,78 @@
+name: Fabric Release Deploy
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Fabric environment to deploy
+        required: true
+        type: choice
+        options: [test, prod]
+      ref:
+        description: Git ref to deploy when manually dispatched
+        required: true
+        default: dev
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+  FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+  FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+
+jobs:
+  deploy-test:
+    name: Deploy release to Fabric Test
+    if: ${{ (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'test-v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'test') }}
+    runs-on: ubuntu-latest
+    environment: test
+    env:
+      FABRIC_WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID }}
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          test -n "$FABRIC_TENANT_ID" || { echo 'Missing FABRIC_TENANT_ID secret'; exit 1; }
+          test -n "$FABRIC_CLIENT_ID" || { echo 'Missing FABRIC_CLIENT_ID secret'; exit 1; }
+          test -n "$FABRIC_CLIENT_SECRET" || { echo 'Missing FABRIC_CLIENT_SECRET secret'; exit 1; }
+          test -n "$FABRIC_WORKSPACE_ID" || { echo 'Missing FABRIC_WORKSPACE_ID environment variable'; exit 1; }
+      - name: Install Fabric CLI
+        run: python -m pip install --disable-pip-version-check ms-fabric-cli
+      - name: Authenticate to Fabric
+        run: fab auth login -u "$FABRIC_CLIENT_ID" -p "$FABRIC_CLIENT_SECRET" --tenant "$FABRIC_TENANT_ID"
+      - name: Deploy to Test workspace
+        run: fab deploy --config fabric/deployment/config.yml --force
+
+  deploy-prod:
+    name: Deploy release to Fabric Prod
+    if: ${{ (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'prod-v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'prod') }}
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      FABRIC_WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID }}
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          test -n "$FABRIC_TENANT_ID" || { echo 'Missing FABRIC_TENANT_ID secret'; exit 1; }
+          test -n "$FABRIC_CLIENT_ID" || { echo 'Missing FABRIC_CLIENT_ID secret'; exit 1; }
+          test -n "$FABRIC_CLIENT_SECRET" || { echo 'Missing FABRIC_CLIENT_SECRET secret'; exit 1; }
+          test -n "$FABRIC_WORKSPACE_ID" || { echo 'Missing FABRIC_WORKSPACE_ID environment variable'; exit 1; }
+      - name: Install Fabric CLI
+        run: python -m pip install --disable-pip-version-check ms-fabric-cli
+      - name: Authenticate to Fabric
+        run: fab auth login -u "$FABRIC_CLIENT_ID" -p "$FABRIC_CLIENT_SECRET" --tenant "$FABRIC_TENANT_ID"
+      - name: Deploy to Prod workspace
+        run: fab deploy --config fabric/deployment/config.yml --force
